@@ -1,13 +1,14 @@
 # DMRTE  
-Rust版本的DMIAE: 一个用于操纵戏剧和游戏剧本的简易工具.
-包含DMIAE Rust API和用于操纵剧本文件的命令行工具.
+Rust版本的DMIAE.
+一个用于记录故事或剧本的协议, 可用于游戏或戏剧中.
+此仓库中包含DMRTE, 一个将纯文本文件转化为DMIAE格式的工具.   
 
 # 目录
-- 结构
-- 源剧本文件语法
-- 源剧本文件属性
-- DMIAE API
-- 技巧
+- [结构](#结构)
+- [源剧本文件语法](#源剧本文件语法)
+- [源剧本文件属性](#源剧本文件属性)
+- [剧本数据结构](#剧本数据结构)
+- [技巧](#技巧)
 
 # 结构
 DMRTE需要一个源剧本文件以工作.   
@@ -39,8 +40,8 @@ DMIAE利用标签与段落将台词分类.
 // [注释内容]
 ```
 以"//"开头的语句被视为注释.   
-源文件是人类可读的格式, 诸如"作者", "剧本名称"之类的属性不会被DMIAE默认存储, 可以在注释中声明.   
-如果不指定"保留所有内容", DMRTE会舍弃所有注释.   
+源文件是人类可读的格式. 诸如"作者", "剧本名称"之类的属性可以在注释中声明.   
+DMRTE会舍弃所有注释.   
 
 ## 属性
 以"!"开头的语句被视为属性.   
@@ -138,31 +139,33 @@ I am not throwing away my shot.
 #cn 威廉: 能的话就来抓我吧.
 ```
 然后就可以利用DMRTE去生成指定语言的剧本.   
-
 但是, 手动定义标签费时费力, 可以使用"tagrule"动态属性来自动为台词打上标签.   
 
 可以在标签名前加"-"以移除某个标签, 所以`#-en`会移除台词上的"en"标签.   
+
+标签通常会被DMRTE保留, 但以`#!dmrte.`开头的会被舍弃(准确来说, 这些标签会被DMRTE使用, 而没有记录它们的必要).   
 
 ### 行动
 行动是非语言的表演, 例如光效, 音乐或者只是笔记.   
 使用此语法定义行动:
 ```
-[角色名:] <文本 (@<行动类型> [行动内容]) 还是文本 (@行动) 依然是文本>
+[角色名:] <文本 (@[行动类型:] <行动内容>) 还是文本 (@行动) 依然是文本>
 ```
 行动被包裹在台词内, 并且会记录其在台词中的位置.   
 行动也可以被包裹在空台词中.   
+如果没有设置行动类型(即没有冒号), 那么行动类型会变为"".   
 
 行动具有类型和内容, 都是任意字符串.   
 具有行动的台词会自动获得"#action-行动类型"标签.   
 
 示例:
 ```
-(@Light 红1面2)
-All: Blood in the water.(@Note 开始逼近)
+(@Light: 红1面2)
+All: Blood in the water.(@Note: 开始逼近)
 水中之血。
 Callahan: Becomes your only law.
 成为你唯一的法则。
-(@Note Callahan关门)(@Audio Blood in the water结束)
+(@Callahan关门)(@Audio: Blood in the water结束)
 ```   
 
 # 源剧本文件属性
@@ -184,8 +187,9 @@ Callahan: Becomes your only law.
 
 tagrule对其之后的台词生效.   
 对于每一行, DMRTE依据定义的相对位置自动处理标签.   
-受到tagrule影响过的台词自动获得"#!tagrule.ignore"标签, 有此标签的台词不会被tagrule再次选中为"this", 此行为可以被[nomark]关闭.   
+受到tagrule影响过的台词自动获得`#!dmrte.tagrule.ignore`标签, 有此标签的台词不会被tagrule再次选中为"this", 此行为可以被[nomark]关闭.   
 当然, 手动添加这个标签会令tagrule无视某行台词.   
+没有内容的行(就是没有任何角色"说话"的行, 例如只有行动的行)也会自动获得`#!dmrte.tagrule.ignore`标签.   
 ```
 !tagrule this +en
 !tagrule after 1 +cn
@@ -196,16 +200,16 @@ Whiteley: How did you...? <- 假设DMRTE正在处理此行
 Whiteley: How did you...? <- 被称为"this"
 怀特利: 你怎么...? <- 被称为"after 1"
 
-Whiteley: How did you...? <- 添加标签"#en"和"#!tagrule.ignore"
-怀特利: 你怎么...? <- 添加标签"#cn"和"#!tagrule.ignore"
+Whiteley: How did you...? <- 添加标签"#en"和"#!dmrte.tagrule.ignore"
+怀特利: 你怎么...? <- 添加标签"#cn"和"#!dmrte.tagrule.ignore"
 
 Whiteley: How did you...? <- 
-怀特利: 你怎么...? <- DMRTE尝试前进, 但本行已有"#!tagrule.ignore", 所以会向前寻找tagrule的下一个目标
+怀特利: 你怎么...? <- DMRTE尝试前进, 但本行已有"#!dmrte.tagrule.ignore", 所以会向前寻找tagrule的下一个目标
 ```
 [+tag]或[tag]添加一个标签, [-tag]移除一个标签.   
-重复定义tagrule会增加或补充已有的tagrule, 使用!tagrule reset来清空所有的tagrule.   
+重复定义tagrule会增加或补充已有的tagrule, 使用`!tagrule reset`来清空所有的tagrule.   
 
-# DMIAE API
+# 剧本数据结构
 此部分描述DMIAE内部的数据结构.   
 
 DMIAE剧本

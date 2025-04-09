@@ -1,13 +1,14 @@
 # DMRTE  
-Rust-flavoured DMIAE: A simple tool to handle drama & game scripts.   
-Contains DMIAE Rust API and a cli utility to manipulate script files.   
+Rust-flavoured DMIAE.   
+DMIAE is a protocol to represent stories or scripts, for use with games of plays.   
+This repository contains DMRTE, a tool that converts plain text into DMIAE format.   
 
 # Table of Contents
-- Structure
-- Source Script File Syntax
-- Source Script File Properties
-- DMIAE API
-- Tips and Tricks
+- [Structure](#structure)
+- [Source Script File Syntax](#source-script-file-syntax)
+- [Source Script File Properties](#source-script-file-properties)
+- [Script Data Structure](#script-data-structure)
+- [Tips and Tricks](#tips-and-tricks)
 
 # Structure
 To use DMIAE, a source script file is needed.   
@@ -40,8 +41,8 @@ Paragraphs are the basic structure of DMIAE. Actually, a DMIAE "Script" is just 
 // [comment]
 ```
 Lines starting with "//" will be treated as comments.   
-As the source file is aimed to be human-readable, but DMIAE does not store information like name or author, writing them in comments is a good way.   
-If not stated otherwise, the DMRTE CLI discards any comments in the script.   
+The source file is aimed to be human-readable. For information like name or author, writing them in comments is a good way.   
+DMRTE discards any comments in the script.   
 
 ## Properties
 Lines starting with "!" will be treated as properties.   
@@ -139,31 +140,33 @@ Tags can be used to categorise lines, for example, if you have a bilingual scrip
 #cn 威廉: 能的话就来抓我吧.
 ```
 Then you can form full script in a specific language using the tag.   
-
 However, manually define these tags for each line is boring, so the "tagrule" dynamic property can help you to automatically tag lines according to a certain format.   
 
 Tags can be removed by prepending the tag name with "-", so `#-en` removes the "en" tag from a line.   
+
+Tags are usually preserved in the generated DMIAE file, but tags that start with `#!dmrte.`(e.g. `#!dmrte.tagrule.ignore`) will be discarded by DMRTE (To be precise, these tags are consumed by DMRTE in the generation process and there's no need to save them).   
 
 ### Actions
 Actions are performance not delivered by words, like light，music，or just notes.   
 Use this syntax to define Actions:
 ```
-[character name:] <content (@<action type> [action content]) still content (@action) also content>
+[character name:] <content (@[action type:] <action content>) still content (@action) also content>
 ```
 Actions are wrapped in lines, and will record their position.   
 Actions may also be wrapped in empty lines.   
+If no action type was specified(that is, no colons), action type will be set to "".   
 
 An Action has a type and content, type is any given string.   
 Lines with actions automatically gain the "#action-type" tag.   
 
 Example:
 ```
-(@Light 红1面2)
-All: Blood in the water.(@Note 开始逼近)
+(@Light: 红1面2)
+All: Blood in the water.(@Note: 开始逼近)
 水中之血。
 Callahan: Becomes your only law.
 成为你唯一的法则。
-(@Note Callahan关门)(@Audio Blood in the water结束)
+(@Callahan关门)(@Audio: Blood in the water结束)
 ```   
 
 # Source Script File Properties
@@ -185,7 +188,8 @@ Where relative position is any of:
 
 tagrule applies to all following lines.   
 For each line, DMRTE will manipulate tags according to the relative position.   
-Lines affected by tagrule automatically gains "#!tagrule.ignore", which prevents the line being treated as "this" in tagrule again, this behaviour can be disabled by adding [nomark].   
+Lines affected by tagrule automatically gains `#!dmrte.tagrule.ignore`, which prevents the line being treated as "this" in tagrule again, this behaviour can be disabled by adding [nomark].   
+Lines that has no content(i.e. nothing is "spoke" by anyone, like a line with only actions) will also gain `#!dmrte.tagrule.ignore`.   
 Also, manually adding this tag prevents tagrule from applying to this line.
 ```
 !tagrule this +en
@@ -197,16 +201,16 @@ Whiteley: How did you...? <- Let's say DMRTE is looking at this line
 Whiteley: How did you...? <- referred as "this"
 怀特利: 你怎么...? <- referred as "after 1"
 
-Whiteley: How did you...? <- add tag "#en" and "#!tagrule.ignore"
-怀特利: 你怎么...? <- add tag "#cn" and "#!tagrule.ignore"
+Whiteley: How did you...? <- add tag "#en" and "#!dmrte.tagrule.ignore"
+怀特利: 你怎么...? <- add tag "#cn" and "#!dmrte.tagrule.ignore"
 
 Whiteley: How did you...? <- 
-怀特利: 你怎么...? <- DMRTE attempts to move forward, but this line already has "#!tagrule.ignore", so it will move forware again.   
+怀特利: 你怎么...? <- DMRTE attempts to move forward, but this line already has "#!dmrte.tagrule.ignore", so it will move forware again.   
 ```
 [+tag] or [tag] adds a tag to the line, [-tag] removes an existing tag.   
-Redefining tagrule adds a tagrule, use "!tagrule reset" to clear all tagrules.   
+Redefining tagrule adds a tagrule, use `!tagrule reset` to clear all tagrules.   
 
-# DMIAE API
+# Script Data Structure
 This section describes the internal data structure of a DMIAE script.   
 
 DMIAE Script
